@@ -11,3 +11,6 @@ class Fastqc(Module):
 
     def init_options(self, fmt_opts):
         pass
+
+    def main(self, opts):
+        cmd = '{} {}'.format(self.program('fastqc'))
