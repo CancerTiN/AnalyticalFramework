@@ -4,6 +4,7 @@
 import os
 import configparser
 import importlib
+import gevent
 from gevent.lock import BoundedSemaphore
 from gevent.pool import Pool
 
@@ -66,20 +67,30 @@ class Workflow():
         self._pool.map(self.activate, self.events('begin'))
 
 class Module():
-    def __init__(self, options):
-        self._options = dict()
-    #     if os.path.isfile(cfg_file):
-    #         self._cfg_file = cfg_file
-    #         self._init_cfg()
-    #     else:
-    #         raise FileNotFoundError('ERROR: can not find {}'.format(cfg_file))
-    #
-    # def _init_cfg(self):
-    #     self._cfg = configparser.ConfigParser()
-    #     self._cfg.read(self._cfg_file)
-    #     if 'setting' not in self._cfg.sections():
-    #         raise KeyError('ERROR: can not find setting section in {}'.format(cfg_file))
-    #
-    # @property
-    # def config(self):
-    #     return self._cfg
+    def __init__(self, name):
+        self._name = name
+        self._bind_object = dict()
+
+    @property
+    def name(self):
+        return self._name
+
+    def bind(self, obj, key):
+        self._bind_object[key] = obj
+
+    def get(self, key, obj=list):
+        if key in self._bind_object:
+            return self._bind_object[key]
+        else:
+            return obj()
+
+    def stop(self):
+        self._bind_object['event'].set()
+        print('{} is stop'.format(self.name))
+
+    def run(self):
+        for i in range(3):
+            gevent.sleep(1)
+            print('{} is running'.format(self.name))
+        else:
+            self.stop()
