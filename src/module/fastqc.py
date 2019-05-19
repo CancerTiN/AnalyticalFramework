@@ -23,3 +23,10 @@ class Fastqc(Module):
 
     def stop(self):
         self._bind_object['event'].set()
+
+class CallFastqc(io):
+    def __init__(self):
+        pass
+
+if __name__ == '__main__':
+    fastqc = CallFastqc()
