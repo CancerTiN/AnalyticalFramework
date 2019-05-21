@@ -7,6 +7,7 @@ import importlib
 import gevent
 from gevent.lock import BoundedSemaphore
 from gevent.pool import Pool
+from collections import defaultdict
 
 class Workflow():
     def __init__(self, cfg_file):
@@ -67,9 +68,15 @@ class Workflow():
         self._pool.map(self.activate, self.events('begin'))
 
 class Module():
-    def __init__(self, name):
-        self._name = name
-        self._bind_object = dict()
+    def __init__(self, options):
+        self._name = self.__class__.__name__.lower()
+        self._bind_object = defaultdict(list)
+        self._io_object.set(options)
+
+    @property
+    def io(self, option_name):
+        option_path = self._io_object.get(option_name)
+        return option_path
 
     @property
     def name(self):
@@ -78,11 +85,8 @@ class Module():
     def bind(self, obj, key):
         self._bind_object[key] = obj
 
-    def get(self, key, obj=list):
-        if key in self._bind_object:
-            return self._bind_object[key]
-        else:
-            return obj()
+    def get(self, key):
+        return self._bind_object[key]
 
     def stop(self):
         self._bind_object['event'].set()
