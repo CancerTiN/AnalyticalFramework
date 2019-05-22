@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # __author__ = 'qinjincheng'
 
-from src.core.flame import Workflow
+from bioframe.core.flame import Workflow
 
 class ChipSeq(Workflow):
     def __init__(self, cfg_file):

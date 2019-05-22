@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # __author__ = 'qinjincheng'
 
-from src.core.flame import Module
-from src.core.element import IO
+from bioframe.core.flame import Module
+from bioframe.core.element import IO
+import os
 import configparser
 
 class Fastqc(Module):
@@ -12,6 +13,23 @@ class Fastqc(Module):
             {'name': 'out_dir', 'type': 'dir'}
         ])
         Module.__init__(self, options)
+
+    def main(self):
+        fastq_dir = self.io('fastq_dir')
+        list_file = os.path.join(fastq_dir, 'list.txt')
+        fastq_dict = dict()
+        for line in open(list_file):
+            items = line.strip().split('\t')
+            if len(items) == 2:
+                fastq_dict[items[1]] = [os.path.join(fastq_dir, items[0])]
+            elif len(items) == 3:
+                if items[1] not in fastq_dict:
+                    fastq_dict[items[1]] = [os.path.join(fastq_dir, items[0])]
+                elif items[2] == 'l':
+                    fastq_dict[items[1]] = [os.path.join(fastq_dir, items[0])] + fastq_dict[items[1]]
+                elif items[2] == 'r':
+                    fastq_dict[items[1]] = fastq_dict[items[1]] + [os.path.join(fastq_dir, items[0])]
+
 
     def init_options(self, fmt_opts):
         pass
