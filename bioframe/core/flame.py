@@ -8,6 +8,9 @@ import gevent
 from gevent.lock import BoundedSemaphore
 from gevent.pool import Pool
 from collections import defaultdict
+from bioframe.config.config import Config
+from bioframe.core.function import Operator
+from bioframe.core.function import Executor
 
 class Workflow():
     def __init__(self, cfg_file):
@@ -68,22 +71,50 @@ class Workflow():
         self._pool.map(self.activate, self.events('begin'))
 
 class Module():
-    def __init__(self, options):
+    def __init__(self):
         self._name = self.__class__.__name__.lower()
-        self._bind_object = defaultdict(list)
-        self._io_object.set(options)
+        self._str = defaultdict(str)
+        self._list = defaultdict(list)
+        self._dict = defaultdict(dict)
+        self._object = defaultdict(object)
+        self.bind(object, 'config', Config())
+        self.bind(object, 'operator', Operator())
+        self.bind(object, 'executor', Executor())
+
+    def bind(self, cls, key, val):
+        {str: self._str, list: self._list, dict: self._dict, object: self._object}[cls][key] = val
 
     @property
-    def io(self, option_name):
-        option_path = self._io_object.get(option_name)
-        return option_path
+    def str(self, key):
+        return self._str[key]
+
+    @property
+    def list(self, key):
+        return self._list[key]
+
+    @property
+    def dict(self, key):
+        return self._dict[key]
+
+    @property
+    def object(self, key):
+        return self._object[key]
+
+    def def_io(self, io_object, options):
+        self.bind(object, 'io', io_object)
+        self.object('io').set(options)
+
+    @property
+    def io(self, name):
+        path = self.object('io').get(name)
+        return path
 
     @property
     def name(self):
         return self._name
 
-    def bind(self, obj, key):
-        self._bind_object[key] = obj
+    # def bind(self, obj, key):
+    #     self._bind_object[key] = obj
 
     def get(self, key):
         return self._bind_object[key]

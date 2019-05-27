@@ -25,3 +25,7 @@ class Config():
     def script(self, option, section='default'):
         config = self._configs['script']
         return config[section][option]
+
+if __name__ == '__main__':
+    c = Config()
+    print(c.program('fastqc'))

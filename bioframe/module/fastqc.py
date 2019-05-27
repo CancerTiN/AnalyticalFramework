@@ -4,27 +4,44 @@
 from bioframe.core.flame import Module
 from bioframe.core.element import IO
 import os
+import shutil
+from collections import OrderedDict
 import configparser
 
 class Fastqc(Module):
     def __init__(self, options):
-        self._io_object = IO([
+        Module.__init__(self)
+        self.def_io(IO([
             {'name': 'fastq_dir', 'type': 'dir'},
             {'name': 'out_dir', 'type': 'dir'}
-        ])
-        Module.__init__(self, options)
+        ]), options)
 
     def main(self):
-        fastq_dict = self.opr.get_fastq_dir_info(self.io('fastq_dir'))
+        self.bind(dict, 'fastq', self.object('operator').get_fastq_dict(self.io('fastq_dir')))
+        self.bind(dict, 'command', self.prepare_command())
+        self.object('executor').parallel_thread(self.dict('command'),
+                                                int(self.object('config').argument('max_workers')))
 
-    def init_options(self, fmt_opts):
-        pass
+    def prepare_command(self):
+        if os.path.isdir(self.io('out_dir')):
+            shutil.rmtree(self.io('out_dir'))
+        os.makedirs(self.io('out_dir'))
+        cmds = OrderedDict()
+        for k, v in self.dict('fastq').items():
+            outdir = os.makedirs(os.path.join(self.io('out_dir'), k))
+            for n, fastq in enumerate(v):
+                cmds['fastqc_{}_{}'.format(k, n)] = '{} -o {} {}'.format(
+                    self.object('config').program('fastqc'), outdir, fastq
+                )
+        else:
+            return cmds
+
 
     def main(self, opts):
         cmd = '{} {}'.format(self.program('fastqc'))
 
-    def bind(self, obj, key):
-        self._bind_object[key] = obj
+    # def bind(self, obj, key):
+    #     self._bind_object[key] = obj
 
     def get(self, key):
         return self._bind_object[key]

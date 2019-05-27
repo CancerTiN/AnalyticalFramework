@@ -3,8 +3,8 @@
 
 class A:
     def __init__(self):
-        print('Here is class A')
-        print(self.foo)
+        self._name = self.__class__.__name__.lower()
+        print(self._name)
 
 class B(A):
     def __init__(self):
