@@ -5,6 +5,7 @@ import configparser
 
 conf = configparser.ConfigParser()
 conf.read('config.ini')
+print('config: {}'.format(conf))
 
 sections = conf.sections()
 print('sections: {}'.format(sections))

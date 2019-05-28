@@ -9,8 +9,11 @@ from gevent.lock import BoundedSemaphore
 from gevent.pool import Pool
 from collections import defaultdict
 from bioframe.config.config import Config
+import datetime
+import random
 from bioframe.core.function import Operator
 from bioframe.core.function import Executor
+import pickle
 
 class Workflow():
     def __init__(self, cfg_file):
@@ -73,59 +76,107 @@ class Workflow():
 class Module():
     def __init__(self):
         self._name = self.__class__.__name__.lower()
-        self._str = defaultdict(str)
-        self._list = defaultdict(list)
-        self._dict = defaultdict(dict)
-        self._object = defaultdict(object)
-        self.bind(object, 'config', Config())
-        self.bind(object, 'operator', Operator())
-        self.bind(object, 'executor', Executor())
+        self._config = Config()
+        self._path = dict()
+        self.set_path('workspace', self.config('module', 'path', 'workspace'))
+        self.set_path('cwd', os.path.join(self.path('workspace'), datetime.datetime.now().strftime('%Y%m%d'),
+            'module.{}.{}'.format(self._name, datetime.datetime.now().strftime('%H%M%S'))))
+        os.makedirs(self.path('cwd'))
+        os.chdir(self.path('cwd'))
+        self._operator = Operator()
+        self._executor = Executor()
 
-    def bind(self, cls, key, val):
-        {str: self._str, list: self._list, dict: self._dict, object: self._object}[cls][key] = val
+    def config(self, name, section, option):
+        return self._config.get(name, section, option)
 
-    @property
-    def str(self, key):
-        return self._str[key]
+    def set_path(self, name, path, check=False):
+        if check:
+            if not os.path.exists(path):
+                raise Exception('ERROR: can not find {}'.format(path))
+        self._path.update({name: path})
 
-    @property
-    def list(self, key):
-        return self._list[key]
-
-    @property
-    def dict(self, key):
-        return self._dict[key]
-
-    @property
-    def object(self, key):
-        return self._object[key]
-
-    def def_io(self, io_object, options):
-        self.bind(object, 'io', io_object)
-        self.object('io').set(options)
-
-    @property
-    def io(self, name):
-        path = self.object('io').get(name)
-        return path
+    def path(self, name):
+        return self._path[name]
 
     @property
     def name(self):
         return self._name
 
-    # def bind(self, obj, key):
-    #     self._bind_object[key] = obj
+    @property
+    def operator(self):
+        return self._operator
 
-    def get(self, key):
-        return self._bind_object[key]
+    @property
+    def executor(self):
+        return self._executor
 
-    def stop(self):
-        self._bind_object['event'].set()
-        print('{} is stop'.format(self.name))
+    @staticmethod
+    def dumpstatus(func):
+        def wrapper(*args, **kwargs):
+            begin_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print('{} INFO: begin of the function ({})'.format(begin_time, func.__qualname__))
+            pickle.dump(True, open('{}.status.pk'.format(func.__qualname__), 'wb'))
+            result = func(*args, **kwargs)
+            pickle.dump(True, open('{}.status.pk'.format(func.__qualname__), 'wb'))
+            final_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print('{} INFO: final of the function ({})'.format(final_time, func.__qualname__))
+            return result
+        return wrapper
 
-    def run(self):
-        for i in range(3):
-            gevent.sleep(1)
-            print('{} is running'.format(self.name))
-        else:
-            self.stop()
+
+    #     self._str = defaultdict(str)
+    #     self._list = defaultdict(list)
+    #     self._dict = defaultdict(dict)
+    #     self._object = defaultdict(object)
+    #     self.bind(object, 'config', Config())
+    #     self.bind(object, 'operator', Operator())
+    #     self.bind(object, 'executor', Executor())
+    #
+    # def bind(self, cls, key, val):
+    #     {str: self._str, list: self._list, dict: self._dict, object: self._object}[cls][key] = val
+    #
+    # @property
+    # def str(self, key):
+    #     return self._str[key]
+    #
+    # @property
+    # def list(self, key):
+    #     return self._list[key]
+    #
+    # @property
+    # def dict(self, key):
+    #     return self._dict[key]
+    #
+    # @property
+    # def object(self, key):
+    #     return self._object[key]
+    #
+    # def def_io(self, io_object, options):
+    #     self.bind(object, 'io', io_object)
+    #     self.object('io').set(options)
+    #
+    # @property
+    # def io(self, name):
+    #     path = self.object('io').get(name)
+    #     return path
+    #
+    # @property
+    # def name(self):
+    #     return self._name
+    #
+    # # def bind(self, obj, key):
+    # #     self._bind_object[key] = obj
+    #
+    # def get(self, key):
+    #     return self._bind_object[key]
+    #
+    # def stop(self):
+    #     self._bind_object['event'].set()
+    #     print('{} is stop'.format(self.name))
+    #
+    # def run(self):
+    #     for i in range(3):
+    #         gevent.sleep(1)
+    #         print('{} is running'.format(self.name))
+    #     else:
+    #         self.stop()

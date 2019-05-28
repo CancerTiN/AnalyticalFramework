@@ -29,32 +29,53 @@ class Operator:
 
 class Executor:
     def __init__(self):
-        pass
+        self._command = dict()
+        self._done = set()
+        self._max_workers = 4
 
-    def execute_command(self, name, command, path):
+    def set(self, **kwargs):
+        if 'max_workers' in kwargs:
+            self._max_workers = int(kwargs['max_workers'])
+
+    def add_command(self, name, command):
+        if name in self._command:
+            raise Exception('ERROR: can not add command with same name ({}) repeatedly'.format(name))
+        else:
+            self._command[name] = command
+
+    def run_command(self, path=None):
+        commands = dict((name, command) for name, command in self._command.items() if name not in self._done)
+        path = path if path else os.getcwd()
+        ret = self._run(commands, self._max_workers, path)
+
+    def _run(self, commands: dict, max_workers: int, path: str):
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_command = {executor.submit(self._execute_command, name, command, path): (name, command)
+                                 for name, command in commands.items()}
+            for future in concurrent.futures.as_completed(future_to_command):
+                name, command = future_to_command[future]
+                try:
+                    data = future.result()
+                except:
+                    raise Exception('ERROR: command ({}) generated at {}'.format(name, future))
+                else:
+                    fmtime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    print('{} INFO: {} is done and return {}'.format(fmtime, name, data))
+                    self._done.add(name)
+        return True
+
+    def _execute_command(self, name, command, path):
         os.chdir(path)
         proc = subprocess.Popen(
             command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         retcode = proc.wait()
         outs, errs = proc.communicate()
-        open('{}.out'.format(name), 'w').write(outs)
-        open('{}.err'.format(name), 'w').write(errs)
+        open('{}.out'.format(name), 'wb').write(outs)
+        open('{}.err'.format(name), 'wb').write(errs)
         if retcode:
             raise Exception('ERROR: fail to excecute -> {} (returncode {})'.format(command, retcode))
         else:
-            print('INFO: succeed in executing -> {}'.format(command))
-
-    def parallel_thread(self, commands: dict, max_workers: int, path: str):
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_command = {executor.submit(self.execute_command, name, command, path): command
-                                 for name, command in commands.items()}
-            for future in concurrent.futures.as_completed(future_to_command):
-                command = future_to_command[future]
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    print('{} generated an exception: {}'.format(command, exc))
-                else:
-                    print('{} is done and return {} bytes'.format(command, len(data)))
-        return True
+            fmtime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print('{} INFO: succeed in executing -> {}'.format(fmtime, command))
+            return True
