@@ -5,6 +5,7 @@ import os
 import subprocess
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
+import datetime
 
 class Operator:
     def __init__(self):
@@ -57,7 +58,7 @@ class Executor:
                 try:
                     data = future.result()
                 except:
-                    raise Exception('ERROR: command ({}) generated at {}'.format(name, future))
+                    raise Exception('ERROR: command ({}) generated exception at {}'.format(name, future))
                 else:
                     fmtime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     print('{} INFO: {} is done and return {}'.format(fmtime, name, data))
